@@ -245,7 +245,10 @@ public class MyPermissions {
         @Override
         public void dismiss() {
             // otherwise will window leak
-            alertDialog.dismiss();
+            if (alertDialog != null) {
+                alertDialog.dismiss();
+                alertDialog = null;
+            }
             super.dismiss();
         }
     }
