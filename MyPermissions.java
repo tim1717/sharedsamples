@@ -1,5 +1,3 @@
-package com.samp.ling.sampleapp.utils;
-
 import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -17,6 +15,12 @@ import java.util.Set;
 /**
  * https://developer.android.com/training/permissions/requesting.html
  * https://developer.android.com/guide/topics/security/permissions.html
+ * use example:
+    String[] permissions = new String[] {android.Manifest.permission.READ_EXTERNAL_STORAGE,
+        android.Manifest.permission.WRITE_EXTERNAL_STORAGE};
+    MyPermissions.RationaleDialog rationaleDialog =
+        MyPermissions.checkPermissions(MainActivity.this, permissions, PERMISSION_CODE, "please!");
+ * - remember to rationaleDialog.dismiss() somewhere like onDestroy
  */
 
 public class MyPermissions {
@@ -53,7 +57,7 @@ public class MyPermissions {
     }
 
     /**
-     * only permission check (single)
+     * only permission check (single), no rationale
      */
     public static void checkPermissions(@NonNull Activity activity,
                                         @NonNull String permission, int requestCode) {
@@ -63,7 +67,7 @@ public class MyPermissions {
     }
 
     /**
-     * only permission check (multi)
+     * only permission check (multi), no rationale
      */
     public static void checkPermissions(@NonNull Activity activity,
                                         @NonNull String[] permissions, int requestCode) {
@@ -74,27 +78,28 @@ public class MyPermissions {
     /**
      * both permission check (single) and rationale
      */
-    public static void checkPermissions(@NonNull Activity activity,
-                                         @NonNull String permission, int requestCode, RationaleDialog rationaleDialog) {
+    public static RationaleDialog checkPermissions(@NonNull Activity activity,
+                                         @NonNull String permission, int requestCode, String rationaleMessage) {
         String[] permissions = new String[] {permission};
 
-        MyPermissions.checkPermissions(activity, permissions, requestCode, rationaleDialog);
+        return MyPermissions.checkPermissions(activity, permissions, requestCode, rationaleMessage);
     }
 
     /**
      * permissions check and rationale
-     * <br>onRequestPermissionsResult will always handle permitted actions
+     * <br>onRequestPermissionsResult should always handle permitted actions
      * <br>Otherwise can change method to 'boolean checkPermissions()'
      * <br>(FALSE if pass through checkSelfPermission (needToCheck), TRUE if already permitted)
      * @param activity context
      * @param permissions permissions: Manifest.permission.PERMISSION_NAME
      * @param requestCode request code
-     * @param rationaleDialog custom AlertDialog explaining permission
+     * @param rationaleMessage message explaining permission
      */
-    public static void checkPermissions(@NonNull Activity activity,
-                                         @NonNull String[] permissions, int requestCode, RationaleDialog rationaleDialog) {
+    public static RationaleDialog checkPermissions(@NonNull Activity activity,
+                                        @NonNull String[] permissions, int requestCode,
+                                        String rationaleMessage) {
         Log.i(tag, "checkPermissions[] >>> " + permissions.length);
-        if (permissions.length <= 0) return;
+        if (permissions.length <= 0) return null;
 
         Set<String> needToCheckPermissions = new HashSet<>();
         Set<String> needToShowRationales = new HashSet<>();
@@ -102,6 +107,7 @@ public class MyPermissions {
         for (String permission : permissions) {
             Log.d(tag, permission);
             /**
+             * granted / rationale
              * 1st time: false, false
              * 2nd, deny: false, true
              * 3rd+, dont ask: false, false
@@ -132,14 +138,16 @@ public class MyPermissions {
         Log.d(tag, "permissions need check >>> p" + needToCheckPermissionsSize + "/r" + needToShowRationalesSize);
 
         if (needToCheck) {
-            if (needToShowRationalesSize > 0
-                    && (rationaleDialog != null && !MyStrTool.isReallyEmpty(rationaleDialog.getMessage()))) {
+            if (needToShowRationalesSize > 0 && !MyStrTool.isReallyEmpty(rationaleMessage)) {
                 Log.d(tag, "prepare rationaleDialog");
+                RationaleDialog rationaleDialog = new RationaleDialog(activity, rationaleMessage);
                 RunRequestPermissions runRequestPermissions = new RunRequestPermissions(activity, needToCheckPermissions, requestCode);
 
                 // custom dialog for shouldShowRequestPermissionRationale
                 rationaleDialog.setCallback(runRequestPermissions);
                 rationaleDialog.show();
+
+                return rationaleDialog;
             } else {
                 String[] doCheckPermissions = needToCheckPermissions.toArray(new String[needToCheckPermissionsSize]);
 
@@ -149,6 +157,8 @@ public class MyPermissions {
             // onRequestPermissionsResult to handle permitted
             MyPermissions.requestPermissions(activity, permissions, requestCode);
         }
+
+        return null;
     }
 
     /**
@@ -192,6 +202,9 @@ public class MyPermissions {
         }
     }
 
+    /**
+     * basic AlertDialog for rationaleMessage
+     */
     public static class RationaleDialog extends AlertDialog {
         private Context mContext;
         private String message;
@@ -208,10 +221,6 @@ public class MyPermissions {
             this.callback = callback;
         }
 
-        protected String getMessage() {
-            return this.message;
-        }
-
         @Override
         public void show() {
             Builder alertDialogBuilder = new Builder(mContext);
@@ -221,7 +230,7 @@ public class MyPermissions {
             if (!MyStrTool.isReallyEmpty(message))
                 alertDialogBuilder.setMessage(message);
 
-            alertDialogBuilder.setNegativeButton("Close", new DialogInterface.OnClickListener() {
+            alertDialogBuilder.setNegativeButton("Proceed", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog,int id) {
                     dialog.cancel();
                 }
@@ -244,7 +253,7 @@ public class MyPermissions {
 
         @Override
         public void dismiss() {
-            // otherwise will window leak
+            // otherwise might window leak
             if (alertDialog != null) {
                 alertDialog.dismiss();
                 alertDialog = null;
