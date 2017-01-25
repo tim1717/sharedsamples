@@ -19,7 +19,7 @@ public class MyNetTool {
 
     /**
      * simply checks whether a network is connected
-     * note: even though network may have no internet connection
+     * <br>note: even though network may have no internet connection
      */
     public static boolean isNetworkAvailable(@NonNull Context context) {
         ConnectivityManager connectivityManager
@@ -30,11 +30,11 @@ public class MyNetTool {
 
     /**
      * check whether URL(s) can be reached
-     * (internet connection can be confirmed, if URL is correct and TRUE)
-     * TRUE if reachable
-     * FALSE if not reachable
-     * NULL if URL is malformed
-     * use example:
+     * <br>(internet connection can be confirmed, if URL is correct and TRUE)
+     * <br>TRUE if reachable
+     * <br>FALSE if not reachable
+     * <br>NULL if URL is malformed
+     * <br>use example:
         String[] checkUrls = new String[] {"http://www.qweasddfg.com", "https://www.google.com/", "pokpok", "", null};
         MyNetTool.HostAvailabilityTask checkHost = new MyNetTool.HostAvailabilityTask() {
             @Override
@@ -118,10 +118,10 @@ public class MyNetTool {
 
     /**
      * simple network broadcast receiver
-     * <uses-permission android:name="android.permission.INTERNET" />
-     * <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-     * intent-filter:
-     * <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+     * <br><uses-permission android:name="android.permission.INTERNET" />
+     * <br><uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+     * <br>intent-filter:
+     * <br><action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
      */
     public static class MyNetReceiver extends BroadcastReceiver {
 
