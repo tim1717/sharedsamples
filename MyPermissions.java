@@ -20,7 +20,7 @@ import java.util.Set;
         android.Manifest.permission.WRITE_EXTERNAL_STORAGE};
     MyPermissions.RationaleDialog rationaleDialog =
         MyPermissions.checkPermissions(MainActivity.this, permissions, PERMISSION_CODE, "please!");
- * - remember to rationaleDialog.dismiss() somewhere like onDestroy
+ * note: remember to rationaleDialog.dismiss() somewhere like onDestroy
  */
 
 public class MyPermissions {
@@ -261,5 +261,70 @@ public class MyPermissions {
             super.dismiss();
         }
     }
+
+    /**
+     * activity's onRequestPermissionsResult
+     *
+        @Override
+        public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+            int permissionsSize = permissions.length;
+            int grantResultsSize = grantResults.length;
+
+            switch (requestCode) {
+                case PERMISSION_CODE: {
+                    if (permissionsSize > 0) {
+                        showPermWarning(permissions, grantResults, permissionsSize, grantResultsSize);
+                    }
+                    return;
+                }
+                default:
+                    break;
+            }
+        }
+
+        private AlertDialog permWarningDialog;
+        private void showPermWarning(String[] permissions, int[] grantResults,
+                                     int permissionsSize, int grantResultsSize) {
+            StringBuilder permissionsNotGranted = new StringBuilder("");
+            StringBuilder permissionsGranted = new StringBuilder("");
+            PackageManager pm = getPackageManager();
+
+            for (int i = 0; i < permissionsSize; i++) {
+                try {
+                    if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                        PermissionInfo permissionGroupInfo = pm.getPermissionInfo(permissions[i], 0);
+                        String permissionGroup = permissionGroupInfo.group
+                                .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
+                        permissionsNotGranted.append(permissionGroup).append("\n");
+                    } else {
+                        PermissionInfo permissionGroupInfo = pm.getPermissionInfo(permissions[i], 0);
+                        String permissionGroup = permissionGroupInfo.group
+                                .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
+                        permissionsGranted.append(permissionGroup).append("\n");
+                    }
+                } catch (PackageManager.NameNotFoundException | IndexOutOfBoundsException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            String permissionGroupsNotGranted = permissionsNotGranted.toString();
+            String permissionGroupsGranted = permissionsGranted.toString();
+
+            if (!MyStrTool.isReallyEmpty(permissionGroupsNotGranted)) {
+                if (MyStrTool.isReallyEmpty(permissionGroupsGranted)) {
+                    // permissions NOT granted
+                    permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
+                            permissionGroupsNotGranted + "To enable > settings > app's permissions");
+                } else {
+                    // SOME permissions NOT granted
+                    permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
+                            "Some permission(s) were granted except..\n" + permissionGroupsNotGranted
+                                    + "To enable > settings > app's permissions");
+                }
+            } else {
+                // permissions granted
+            }
+        }
+    */
 
 }
