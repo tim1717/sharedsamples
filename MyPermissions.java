@@ -265,66 +265,73 @@ public class MyPermissions {
     /**
      * activity's onRequestPermissionsResult
      *
-        @Override
-        public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-            int permissionsSize = permissions.length;
-            int grantResultsSize = grantResults.length;
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        int permissionsSize = permissions.length;
+        int grantResultsSize = grantResults.length;
+        Log.d(tag, "onRequestPermissionsResult: " + requestCode
+                + " p" + permissionsSize + "/g" + grantResultsSize);
 
-            switch (requestCode) {
-                case PERMISSION_CODE: {
-                    if (permissionsSize > 0) {
-                        showPermWarning(permissions, grantResults, permissionsSize, grantResultsSize);
-                    }
-                    return;
+        switch (requestCode) {
+            case PERMISSION_CODE: {
+                if (permissionsSize > 0) {
+                    showPermWarning(permissions, grantResults, permissionsSize, grantResultsSize);
                 }
-                default:
-                    break;
+                return;
             }
+            default:
+                break;
         }
+    }
 
-        private AlertDialog permWarningDialog;
-        private void showPermWarning(String[] permissions, int[] grantResults,
-                                     int permissionsSize, int grantResultsSize) {
-            StringBuilder permissionsNotGranted = new StringBuilder("");
-            StringBuilder permissionsGranted = new StringBuilder("");
-            PackageManager pm = getPackageManager();
+    private void showPermWarning(String[] permissions, int[] grantResults,
+                                 int permissionsSize, int grantResultsSize) {
+        Set<String> permissionsGroupsNotGranted = new HashSet<>();
+        StringBuilder permissionsNotGranted = new StringBuilder("");
+        StringBuilder permissionsGranted = new StringBuilder("");
+        PackageManager pm = getPackageManager();
 
-            for (int i = 0; i < permissionsSize; i++) {
-                try {
-                    if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                        PermissionInfo permissionGroupInfo = pm.getPermissionInfo(permissions[i], 0);
-                        String permissionGroup = permissionGroupInfo.group
-                                .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
+        // sorts permissions that were granted and not granted for warning
+        for (int i = 0; i < permissionsSize; i++) {
+            try {
+                Log.i(tag, permissions[i] + ": " + (grantResultsSize > i ? grantResults[i] : "-"));
+                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
+                    PermissionInfo permissionGroupInfo = pm.getPermissionInfo(permissions[i], 0);
+                    String permissionGroup = permissionGroupInfo.group
+                            .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
+                    if (!permissionsGroupsNotGranted.contains(permissionGroup)) {
+                        permissionsGroupsNotGranted.add(permissionGroup);
                         permissionsNotGranted.append(permissionGroup).append("\n");
-                    } else {
-                        PermissionInfo permissionGroupInfo = pm.getPermissionInfo(permissions[i], 0);
-                        String permissionGroup = permissionGroupInfo.group
-                                .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
-                        permissionsGranted.append(permissionGroup).append("\n");
                     }
-                } catch (PackageManager.NameNotFoundException | IndexOutOfBoundsException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            String permissionGroupsNotGranted = permissionsNotGranted.toString();
-            String permissionGroupsGranted = permissionsGranted.toString();
-
-            if (!MyStrTool.isReallyEmpty(permissionGroupsNotGranted)) {
-                if (MyStrTool.isReallyEmpty(permissionGroupsGranted)) {
-                    // permissions NOT granted
-                    permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
-                            permissionGroupsNotGranted + "To enable > settings > app's permissions");
                 } else {
-                    // SOME permissions NOT granted
-                    permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
-                            "Some permission(s) were granted except..\n" + permissionGroupsNotGranted
-                                    + "To enable > settings > app's permissions");
+                    String permissionName = permissions[i]
+                            .substring(permissions[i].lastIndexOf(".") + 1);
+                    permissionsGranted.append(permissionName).append("\n");
                 }
-            } else {
-                // permissions granted
+            } catch (PackageManager.NameNotFoundException | IndexOutOfBoundsException e) {
+                e.printStackTrace();
             }
         }
+
+        String permStrGroupsNotGranted = permissionsNotGranted.toString();
+        String permStrGroupsGranted = permissionsGranted.toString();
+
+        // shows which permissions groups were not granted using alertdialog
+        if (!MyStrTool.isReallyEmpty(permStrGroupsNotGranted)) {
+            if (MyStrTool.isReallyEmpty(permStrGroupsGranted)) {
+                MyTool.makeToastLog(this, "permissions NOT granted");
+                permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
+                        permStrGroupsNotGranted + "To enable > settings > app's permissions");
+            } else {
+                MyTool.makeToastLog(this, "some permissions NOT granted");
+                permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
+                        permStrGroupsGranted + "Some permission(s) were granted except..\n"
+                                + permStrGroupsNotGranted + "To enable > settings > app's permissions");
+            }
+        } else {
+            MyTool.makeToastLog(this, "permissions granted");
+        }
+    }
     */
 
 }
