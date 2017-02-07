@@ -3,6 +3,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.pm.PermissionInfo;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -27,6 +28,9 @@ public class MyPermissions {
     private static final String tag = MyPermissions.class.getSimpleName();
 
     public static final String PREFERENCE_KEY = MyGlobals.PREFERENCE_KEY;
+    public static final int FIRST = 0;
+    public static final int SEEN = 1;
+    public static final int DONTASK = 2;
 
     /**
      * TRUE if GRANTED
@@ -98,19 +102,19 @@ public class MyPermissions {
     public static RationaleDialog checkPermissions(@NonNull Activity activity,
                                         @NonNull String[] permissions, int requestCode,
                                         String rationaleMessage) {
-        Log.i(tag, "checkPermissions[] >>> " + permissions.length);
+        Log.i(tag, "checkingPermissions[] >>> " + permissions.length);
         if (permissions.length <= 0) return null;
 
-        Set<String> needToCheckPermissions = new HashSet<>();
-        Set<String> needToShowRationales = new HashSet<>();
+        Set<String> toCheckPermissions = new HashSet<>();
+        Set<String> toShowRationales = new HashSet<>();
 
         for (String permission : permissions) {
             Log.d(tag, permission);
             /**
-             * granted / rationale
-             * 1st time: false, false
-             * 2nd, deny: false, true
-             * 3rd+, dont ask: false, false
+             * granted / shouldShow / firstTime
+             * 1st time: false, false, true
+             * 2nd, deny: false, true, false
+             * 3rd+, dont ask: false, false, false
              * allow: true, dc
              * differ 1st vs dont ask: use sharedPreferences
              */
@@ -118,30 +122,32 @@ public class MyPermissions {
             if (!MyStrTool.isReallyEmpty(permission)) {
                 boolean granted = MyPermissions.checkSelfPermission(activity, permission);
                 if (!granted) {
-                    needToCheckPermissions.add(permission);
+                    toCheckPermissions.add(permission);
                 }
 
-                SharedPreferences sharedPreferences = activity.getSharedPreferences(PREFERENCE_KEY, Context.MODE_PRIVATE);
-                boolean firstTime = sharedPreferences.getBoolean(permission, true);
-
                 boolean shouldShow = MyPermissions.shouldShowRequestPermissionRationale(activity, permission);
-                if (shouldShow || (!shouldShow && firstTime)) {
-                    needToShowRationales.add(permission);
-                    sharedPreferences.edit().putBoolean(permission, false).apply();
+                SharedPreferences sharedPreferences = activity.getSharedPreferences(PREFERENCE_KEY, Context.MODE_PRIVATE);
+                boolean firstTime = sharedPreferences.getInt(permission, FIRST) < SEEN;
+
+                if (shouldShow || firstTime) {
+                    toShowRationales.add(permission);
+                    sharedPreferences.edit().putInt(permission, SEEN).apply();
+                } else if (!shouldShow && !firstTime) {
+                    toShowRationales.add(permission);
+                    sharedPreferences.edit().putInt(permission, DONTASK).apply();
                 }
             }
         }
 
-        int needToCheckPermissionsSize = needToCheckPermissions.size();
-        int needToShowRationalesSize = needToShowRationales.size();
-        boolean needToCheck = needToCheckPermissionsSize > 0;
-        Log.d(tag, "permissions need check >>> p" + needToCheckPermissionsSize + "/r" + needToShowRationalesSize);
+        int toCheckSize = toCheckPermissions.size();
+        int toShowSize = toShowRationales.size();
+        Log.d(tag, "permissions to check >>> p" + toCheckSize + "/r" + toShowSize);
 
-        if (needToCheck) {
-            if (needToShowRationalesSize > 0 && !MyStrTool.isReallyEmpty(rationaleMessage)) {
+        if (toCheckSize > 0) {
+            if (toShowSize > 0 && !MyStrTool.isReallyEmpty(rationaleMessage)) {
                 Log.d(tag, "prepare rationaleDialog");
                 RationaleDialog rationaleDialog = new RationaleDialog(activity, rationaleMessage);
-                RunRequestPermissions runRequestPermissions = new RunRequestPermissions(activity, needToCheckPermissions, requestCode);
+                RunRequestPermissions runRequestPermissions = new RunRequestPermissions(activity, toCheckPermissions, requestCode);
 
                 // custom dialog for shouldShowRequestPermissionRationale
                 rationaleDialog.setCallback(runRequestPermissions);
@@ -149,7 +155,7 @@ public class MyPermissions {
 
                 return rationaleDialog;
             } else {
-                String[] doCheckPermissions = needToCheckPermissions.toArray(new String[needToCheckPermissionsSize]);
+                String[] doCheckPermissions = toCheckPermissions.toArray(new String[toCheckSize]);
 
                 MyPermissions.requestPermissions(activity, doCheckPermissions, requestCode);
             }
@@ -159,6 +165,23 @@ public class MyPermissions {
         }
 
         return null;
+    }
+
+    public static String getPermissionName(String permission) throws IndexOutOfBoundsException {
+        return permission.substring(permission.lastIndexOf(".") + 1);
+    }
+
+    public static String getPermissionGroup(Context context, String permission) {
+        PackageManager packageManager = context.getPackageManager();
+        String permissionGroup = null;
+        try {
+            PermissionInfo permissionGroupInfo = packageManager.getPermissionInfo(permission, 0);
+            permissionGroup = permissionGroupInfo.group
+                    .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        return permissionGroup;
     }
 
     /**
@@ -262,9 +285,7 @@ public class MyPermissions {
         }
     }
 
-    /**
-     * activity's onRequestPermissionsResult
-     *
+/**
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         int permissionsSize = permissions.length;
@@ -275,7 +296,7 @@ public class MyPermissions {
         switch (requestCode) {
             case PERMISSION_CODE: {
                 if (permissionsSize > 0) {
-                    showPermWarning(permissions, grantResults, permissionsSize, grantResultsSize);
+                    showPermissionWarning(permissions, grantResults, permissionsSize, grantResultsSize);
                 }
                 return;
             }
@@ -284,54 +305,84 @@ public class MyPermissions {
         }
     }
 
-    private void showPermWarning(String[] permissions, int[] grantResults,
-                                 int permissionsSize, int grantResultsSize) {
+    // designed to show an alert dialog warning
+    // if a permission was set to "don't ask again"
+    // after user returns to same point of check permission
+    // note: can be expanded to show other states
+    private void showPermissionWarning(String[] permissions, int[] grantResults,
+                                       int permissionsSize, int grantResultsSize) {
+        Set<String> permissionsGroupsDontAsked = new HashSet<>();
         Set<String> permissionsGroupsNotGranted = new HashSet<>();
+        StringBuilder permissionsDontAsked = new StringBuilder("");
         StringBuilder permissionsNotGranted = new StringBuilder("");
         StringBuilder permissionsGranted = new StringBuilder("");
-        PackageManager pm = getPackageManager();
+        boolean somePermissionGranted = false;
+        boolean somePermissionNotGranted = false;
+        SharedPreferences sharedPreferences = getSharedPreferences(PREFERENCE_KEY, Context.MODE_PRIVATE);
 
-        // sorts permissions that were granted and not granted for warning
+        // sorts permissions that were not/granted and don't asked
         for (int i = 0; i < permissionsSize; i++) {
             try {
                 Log.i(tag, permissions[i] + ": " + (grantResultsSize > i ? grantResults[i] : "-"));
                 if (grantResults[i] != PackageManager.PERMISSION_GRANTED) {
-                    PermissionInfo permissionGroupInfo = pm.getPermissionInfo(permissions[i], 0);
-                    String permissionGroup = permissionGroupInfo.group
-                            .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
-                    if (!permissionsGroupsNotGranted.contains(permissionGroup)) {
-                        permissionsGroupsNotGranted.add(permissionGroup);
-                        permissionsNotGranted.append(permissionGroup).append("\n");
+                    somePermissionNotGranted = true;
+                    String permissionGroup = MyPermissions.getPermissionGroup(MainActivity.this, permissions[i]);
+
+                    boolean dontAsked = sharedPreferences.getInt(permissions[i], 0) == MyPermissions.DONTASK;
+                    if (dontAsked) {
+                        if (!permissionsGroupsDontAsked.contains(permissionGroup)) {
+                            permissionsGroupsDontAsked.add(permissionGroup);
+                            permissionsDontAsked.append("-").append(permissionGroup).append("\n");
+                        }
+                    } else {
+                        if (!permissionsGroupsNotGranted.contains(permissionGroup)) {
+                            permissionsGroupsNotGranted.add(permissionGroup);
+                            permissionsNotGranted.append("-").append(permissionGroup).append("\n");
+                        }
                     }
                 } else {
-                    String permissionName = permissions[i]
-                            .substring(permissions[i].lastIndexOf(".") + 1);
-                    permissionsGranted.append(permissionName).append("\n");
+                    somePermissionGranted = true;
+                    String permissionName = MyPermissions.getPermissionName(permissions[i]);
+                    permissionsGranted.append("-").append(permissionName).append("\n");
                 }
-            } catch (PackageManager.NameNotFoundException | IndexOutOfBoundsException e) {
+            } catch (IndexOutOfBoundsException e) {
                 e.printStackTrace();
             }
         }
 
-        String permStrGroupsNotGranted = permissionsNotGranted.toString();
-        String permStrGroupsGranted = permissionsGranted.toString();
+        String strGroupsDontAsked = permissionsDontAsked.toString();
+        // unused, but can be used to display which Groups were not/granted
+        String strGroupsNotGranted = permissionsNotGranted.toString();
+        String strGroupsGranted = permissionsGranted.toString();
+        Log.i(tag, "strGroupsDontAsked=" + strGroupsDontAsked);
+        Log.i(tag, "strGroupsNotGranted=" + strGroupsNotGranted);
+        Log.i(tag, "strGroupsGranted=" + strGroupsGranted);
 
-        // shows which permissions groups were not granted using alertdialog
-        if (!MyStrTool.isReallyEmpty(permStrGroupsNotGranted)) {
-            if (MyStrTool.isReallyEmpty(permStrGroupsGranted)) {
-                MyTool.makeToastLog(this, "permissions NOT granted");
-                permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
-                        permStrGroupsNotGranted + "To enable > settings > app's permissions");
+        // shows which permissions groups marked as "don't asked" using alert dialog
+        if (!MyStrTool.isReallyEmpty(strGroupsDontAsked)) {
+            MyTool.makeToastLog(this, "permissions were DISABLED");
+            String warningMessage;
+
+            if (!somePermissionGranted) {
+                warningMessage = "Disabled (Don't ask again):\n" + strGroupsDontAsked
+                        + "To re-enable these permission(s),\n"
+                        + "Please goto Settings > App's permissions";
             } else {
-                MyTool.makeToastLog(this, "some permissions NOT granted");
-                permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this,
-                        permStrGroupsGranted + "Some permission(s) were granted except..\n"
-                                + permStrGroupsNotGranted + "To enable > settings > app's permissions");
+                warningMessage = "Some permission(s) were granted except..\n"
+                        + "Disabled (Don't ask again):\n"
+                        + strGroupsDontAsked
+                        + "To re-enable these permissions,\n"
+                        + "Please goto Settings > App's permissions";
             }
+
+            permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this, warningMessage);
         } else {
-            MyTool.makeToastLog(this, "permissions granted");
+            String message = "permission(s) were"
+                    + (somePermissionNotGranted ? " NOT " : " ") + "granted";
+            MyTool.makeToastLog(this, message);
+            permWarningDialog = null;
         }
     }
-    */
+*/
 
 }
