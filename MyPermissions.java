@@ -286,6 +286,8 @@ public class MyPermissions {
     }
 
 /**
+ * Activity's onRequestPermissionsResult
+ *
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         int permissionsSize = permissions.length;
