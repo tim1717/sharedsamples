@@ -285,9 +285,9 @@ public class MyPermissions {
         }
     }
 
-/**
- * Activity's onRequestPermissionsResult
- *
+    /**
+     * Activity's onRequestPermissionsResult
+     *
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         int permissionsSize = permissions.length;
@@ -352,32 +352,17 @@ public class MyPermissions {
             }
         }
 
-        String strGroupsDontAsked = permissionsDontAsked.toString();
-        // unused, but can be used to display which Groups were not/granted
-        String strGroupsNotGranted = permissionsNotGranted.toString();
-        String strGroupsGranted = permissionsGranted.toString();
-        Log.i(tag, "strGroupsDontAsked=" + strGroupsDontAsked);
-        Log.i(tag, "strGroupsNotGranted=" + strGroupsNotGranted);
-        Log.i(tag, "strGroupsGranted=" + strGroupsGranted);
+        Log.i(tag, "strGroupsDontAsked=" + permissionsDontAsked.toString());
+        Log.i(tag, "strGroupsNotGranted=" + permissionsNotGranted.toString());
+        Log.i(tag, "strGroupsGranted=" + permissionsGranted.toString());
 
         // shows which permissions groups marked as "don't asked" using alert dialog
-        if (!MyStrTool.isReallyEmpty(strGroupsDontAsked)) {
+        if (permissionsDontAsked.length() > 0) {
             MyTool.makeToastLog(this, "permissions were DISABLED");
-            String warningMessage;
-
-            if (!somePermissionGranted) {
-                warningMessage = "Disabled (Don't ask again):\n" + strGroupsDontAsked
-                        + "To re-enable these permission(s),\n"
-                        + "Please goto Settings > App's permissions";
-            } else {
-                warningMessage = "Some permission(s) were granted except..\n"
-                        + "Disabled (Don't ask again):\n"
-                        + strGroupsDontAsked
-                        + "To re-enable these permissions,\n"
-                        + "Please goto Settings > App's permissions";
-            }
-
-            permWarningDialog = MyDialogTool.alertDialogJustMsg(MainActivity.this, warningMessage);
+            permissionsDontAsked.insert(0, "App functions may be affected!\n\nDisabled?\n")
+                    .append("\nTo re-enable these permission(s),\n"
+                            + "Please goto App's Permissions in Settings");
+            permWarningDialog = MyPermissions.warnPermissions(MainActivity.this, permissionsDontAsked.toString());
         } else {
             String message = "permission(s) were"
                     + (somePermissionNotGranted ? " NOT " : " ") + "granted";
@@ -385,6 +370,6 @@ public class MyPermissions {
             permWarningDialog = null;
         }
     }
-*/
+ */
 
 }
