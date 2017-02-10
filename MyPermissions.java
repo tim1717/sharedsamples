@@ -1,9 +1,12 @@
 import android.app.Activity;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.PermissionInfo;
+import android.net.Uri;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -283,6 +286,45 @@ public class MyPermissions {
             }
             super.dismiss();
         }
+    }
+
+    /**
+     * basic AlertDialog for warning disabled Permissions
+     */
+    public static AlertDialog warnPermissions(@NonNull final Context context, String message) {
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(context);
+
+        if (!MyStrTool.isReallyEmpty(message))
+            alertDialogBuilder.setMessage(message);
+
+        alertDialogBuilder.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        alertDialogBuilder.setNeutralButton("Settings", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                Intent i = new Intent();
+                i.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                i.addCategory(Intent.CATEGORY_DEFAULT);
+                Uri uri = Uri.fromParts("package", context.getPackageName(), null);
+                i.setData(uri);
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                i.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+                i.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+                context.startActivity(i);
+            }
+        });
+
+        AlertDialog alertDialog = alertDialogBuilder.create();
+
+        alertDialog.show();
+
+        return alertDialog;
     }
 
     /**
