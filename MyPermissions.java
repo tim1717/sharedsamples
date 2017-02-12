@@ -130,13 +130,14 @@ public class MyPermissions {
 
                 boolean shouldShow = MyPermissions.shouldShowRequestPermissionRationale(activity, permission);
                 SharedPreferences sharedPreferences = activity.getSharedPreferences(PREFERENCE_KEY, Context.MODE_PRIVATE);
-                boolean firstTime = sharedPreferences.getInt(permission, FIRST) < SEEN;
+				int firstTime = sharedPreferences.getInt(permission, FIRST);
+                boolean firstTimeState = sharedPreferences.getInt(permission, FIRST) < SEEN;
+				Log.d(tag, "permissions shouldShow=" + shouldShow + " firstTime=" + firstTime + firstTimeState);
 
-                if (shouldShow || firstTime) {
+                if (shouldShow || firstTimeState) {
                     toShowRationales.add(permission);
                     sharedPreferences.edit().putInt(permission, SEEN).apply();
-                } else if (!shouldShow && !firstTime) {
-                    toShowRationales.add(permission);
+                } else if (!shouldShow && !firstTimeState) {
                     sharedPreferences.edit().putInt(permission, DONTASK).apply();
                 }
             }
