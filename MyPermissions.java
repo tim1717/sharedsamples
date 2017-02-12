@@ -304,27 +304,35 @@ public class MyPermissions {
             }
         });
 
-        alertDialogBuilder.setNeutralButton("Settings", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-                Intent i = new Intent();
-                i.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                i.addCategory(Intent.CATEGORY_DEFAULT);
-                Uri uri = Uri.fromParts("package", context.getPackageName(), null);
-                i.setData(uri);
-                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                i.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-                i.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-                context.startActivity(i);
-            }
-        });
+        PackageManager packageManager = context.getPackageManager();
+        final Intent intent = PermissionsHelper.applicationSettings(context);
+        if (intent.resolveActivity(packageManager) != null) {
+            alertDialogBuilder.setNeutralButton("Settings", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    dialog.dismiss();
+                    context.startActivity(intent);
+                }
+            });
+        }
 
         AlertDialog alertDialog = alertDialogBuilder.create();
 
         alertDialog.show();
 
         return alertDialog;
+    }
+
+    public static Intent applicationSettings(Context context) {
+        Intent intent = new Intent();
+        intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        intent.addCategory(Intent.CATEGORY_DEFAULT);
+        Uri uri = Uri.fromParts("package", context.getPackageName(), null);
+        intent.setData(uri);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+        intent.addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+        return intent;
     }
 
     /**
