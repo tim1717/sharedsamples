@@ -180,8 +180,10 @@ public class MyPermissions {
         String permissionGroup = null;
         try {
             PermissionInfo permissionGroupInfo = packageManager.getPermissionInfo(permission, 0);
-            permissionGroup = permissionGroupInfo.group
-                    .substring(permissionGroupInfo.group.lastIndexOf(".") + 1);
+            permissionGroup = permissionGroupInfo.group;
+            if (!MyStrTool.isReallyEmpty(permissionGroup)) {
+                permissionGroup = permissionGroup.substring(permissionGroup.lastIndexOf(".") + 1);
+            }
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }
