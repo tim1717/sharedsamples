@@ -75,10 +75,10 @@ class MySpeechRecognizer implements RecognitionListener {
             ArrayList<String> spokenResults = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
             if (spokenResults.size() > 0) {
                 mResultView.setText(spokenResults.get(0));
-            } else {
-                mResultView.setText("no results?");
+                return;
             }
         }
+        mResultView.setText("no results?");
     }
 
     @Override
